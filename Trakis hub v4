@@ -271,6 +271,13 @@ task.wait(0.5)
 
 ScreenGui:Destroy()
 
+task.wait(0.2)
+
+-- Executa o Trakis Hub depois do loading
+loadstring(game:HttpGet(
+    "https://raw.githubusercontent.com/trakishub/Trakis-Hub-v1/refs/heads/main/Trakis"
+))()
+
 --==================== FIM DA TELA ====================
 
 
