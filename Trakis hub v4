@@ -251,14 +251,14 @@ end
 
 -- SOM
 local Sound = Instance.new("Sound")
-Sound.SoundId = "rbxassetid://94265985370740"
+Sound.SoundId = "rbxassetid://103695219371872"
 Sound.Volume = 0.7
 Sound.Looped = false
 Sound.Parent = Background
 Sound:Play()
 
 -- CARREGAMENTO
-local totalTime = 20
+local totalTime = 30
 
 for i = 1, 100 do
 	Bar.Size = UDim2.new(i / 100, 0, 1, 0)
