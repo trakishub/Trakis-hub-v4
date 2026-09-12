@@ -257,6 +257,258 @@ Sound.Looped = false
 Sound.Parent = Background
 Sound:Play()
 
+--  EXPLOSÃO DE TELA INTEIRA NO DROP — 13.5s
+task.delay(13.5, function()
+    if not ScreenGui.Parent then return end
+
+    local centerX = 0.5
+    local centerY = 0.43
+
+    -- Camada da explosão, atrás dos elementos principais
+    local ExplosionLayer = Instance.new("Frame")
+    ExplosionLayer.Size = UDim2.fromScale(1, 1)
+    ExplosionLayer.Position = UDim2.fromScale(0, 0)
+    ExplosionLayer.BackgroundTransparency = 1
+    ExplosionLayer.BorderSizePixel = 0
+    ExplosionLayer.ZIndex = 1
+    ExplosionLayer.ClipsDescendants = false
+    ExplosionLayer.Parent = Background
+
+    -- =====================================================
+    -- FLASH GIGANTE
+    -- =====================================================
+
+    local Flash = Instance.new("Frame")
+    Flash.Size = UDim2.fromScale(0.05, 0.05)
+    Flash.Position = UDim2.fromScale(centerX, centerY)
+    Flash.AnchorPoint = Vector2.new(0.5, 0.5)
+    Flash.BackgroundColor3 = Color3.fromRGB(255, 20, 20)
+    Flash.BackgroundTransparency = 0.15
+    Flash.BorderSizePixel = 0
+    Flash.ZIndex = 1
+    Flash.Parent = ExplosionLayer
+
+    local FlashCorner = Instance.new("UICorner")
+    FlashCorner.CornerRadius = UDim.new(1, 0)
+    FlashCorner.Parent = Flash
+
+    TweenService:Create(
+        Flash,
+        TweenInfo.new(
+            0.75,
+            Enum.EasingStyle.Quart,
+            Enum.EasingDirection.Out
+        ),
+        {
+            Size = UDim2.fromScale(2.2, 2.2),
+            BackgroundTransparency = 1
+        }
+    ):Play()
+
+    -- =====================================================
+    -- ONDA QUE TOMA A TELA
+    -- =====================================================
+
+    local Wave = Instance.new("Frame")
+    Wave.Size = UDim2.fromScale(0.02, 0.02)
+    Wave.Position = UDim2.fromScale(centerX, centerY)
+    Wave.AnchorPoint = Vector2.new(0.5, 0.5)
+    Wave.BackgroundTransparency = 1
+    Wave.BorderSizePixel = 0
+    Wave.ZIndex = 2
+    Wave.Parent = ExplosionLayer
+
+    local WaveCorner = Instance.new("UICorner")
+    WaveCorner.CornerRadius = UDim.new(1, 0)
+    WaveCorner.Parent = Wave
+
+    local WaveStroke = Instance.new("UIStroke")
+    WaveStroke.Color = Color3.fromRGB(255, 0, 0)
+    WaveStroke.Thickness = 14
+    WaveStroke.Transparency = 0
+    WaveStroke.Parent = Wave
+
+    TweenService:Create(
+        Wave,
+        TweenInfo.new(
+            1.15,
+            Enum.EasingStyle.Quart,
+            Enum.EasingDirection.Out
+        ),
+        {
+            Size = UDim2.fromScale(2.8, 2.8)
+        }
+    ):Play()
+
+    TweenService:Create(
+        WaveStroke,
+        TweenInfo.new(
+            1.15,
+            Enum.EasingStyle.Quad,
+            Enum.EasingDirection.Out
+        ),
+        {
+            Transparency = 1,
+            Thickness = 2
+        }
+    ):Play()
+
+    -- =====================================================
+    -- 220 PARTÍCULAS GRANDES
+    -- =====================================================
+
+    for i = 1, 220 do
+
+        local Particle = Instance.new("Frame")
+
+        local size = math.random(3, 11)
+
+        Particle.Size = UDim2.fromOffset(size, size)
+        Particle.Position = UDim2.fromScale(centerX, centerY)
+        Particle.AnchorPoint = Vector2.new(0.5, 0.5)
+
+        Particle.BackgroundColor3 = Color3.fromRGB(
+            255,
+            math.random(0, 70),
+            math.random(0, 50)
+        )
+
+        Particle.BackgroundTransparency =
+            math.random(0, 25) / 100
+
+        Particle.BorderSizePixel = 0
+        Particle.ZIndex = 1
+        Particle.Parent = ExplosionLayer
+
+        local Corner = Instance.new("UICorner")
+        Corner.CornerRadius = UDim.new(1, 0)
+        Corner.Parent = Particle
+
+        -- Todas as direções
+        local angle = math.random() * math.pi * 2
+
+        -- Distância suficiente para atravessar a tela
+        local distance = math.random(700, 1600)
+
+        local targetX =
+            centerX +
+            math.cos(angle) *
+            distance /
+            Background.AbsoluteSize.X
+
+        local targetY =
+            centerY +
+            math.sin(angle) *
+            distance /
+            Background.AbsoluteSize.Y
+
+        local duration =
+            math.random(45, 110) / 100
+
+        TweenService:Create(
+            Particle,
+            TweenInfo.new(
+                duration,
+                Enum.EasingStyle.Quart,
+                Enum.EasingDirection.Out
+            ),
+            {
+                Position = UDim2.fromScale(
+                    targetX,
+                    targetY
+                ),
+
+                Size = UDim2.fromOffset(0, 0),
+
+                BackgroundTransparency = 1
+            }
+        ):Play()
+
+        task.delay(1.3, function()
+            if Particle.Parent then
+                Particle:Destroy()
+            end
+        end)
+    end
+
+    -- =====================================================
+    -- 180 FAÍSCAS PEQUENAS
+    -- =====================================================
+
+    for i = 1, 180 do
+
+        local Spark = Instance.new("Frame")
+
+        local size = math.random(1, 5)
+
+        Spark.Size = UDim2.fromOffset(size, size)
+        Spark.Position = UDim2.fromScale(centerX, centerY)
+        Spark.AnchorPoint = Vector2.new(0.5, 0.5)
+
+        Spark.BackgroundColor3 = Color3.fromRGB(
+            255,
+            math.random(40, 120),
+            math.random(30, 70)
+        )
+
+        Spark.BorderSizePixel = 0
+        Spark.ZIndex = 1
+        Spark.Parent = ExplosionLayer
+
+        local Corner = Instance.new("UICorner")
+        Corner.CornerRadius = UDim.new(1, 0)
+        Corner.Parent = Spark
+
+        local angle = math.random() * math.pi * 2
+
+        local distance = math.random(500, 1300)
+
+        local targetX =
+            centerX +
+            math.cos(angle) *
+            distance /
+            Background.AbsoluteSize.X
+
+        local targetY =
+            centerY +
+            math.sin(angle) *
+            distance /
+            Background.AbsoluteSize.Y
+
+        TweenService:Create(
+            Spark,
+            TweenInfo.new(
+                math.random(30, 85) / 100,
+                Enum.EasingStyle.Quad,
+                Enum.EasingDirection.Out
+            ),
+            {
+                Position = UDim2.fromScale(
+                    targetX,
+                    targetY
+                ),
+
+                Size = UDim2.fromOffset(0, 0),
+
+                BackgroundTransparency = 1
+            }
+        ):Play()
+
+        task.delay(1, function()
+            if Spark.Parent then
+                Spark:Destroy()
+            end
+        end)
+    end
+
+    -- Remove a camada depois do efeito
+    task.delay(1.5, function()
+        if ExplosionLayer.Parent then
+            ExplosionLayer:Destroy()
+        end
+    end)
+end)
+
 -- CARREGAMENTO
 local totalTime = 30
 
@@ -279,5 +531,3 @@ loadstring(game:HttpGet(
 ))()
 
 --==================== FIM DA TELA ====================
-
-
