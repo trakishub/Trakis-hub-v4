@@ -257,8 +257,8 @@ Sound.Looped = false
 Sound.Parent = Background
 Sound:Play()
 
---  EXPLOSÃO DE TELA INTEIRA NO DROP — 21.5s
-task.delay(21.5, function()
+--  EXPLOSÃO DE TELA INTEIRA NO DROP — 19s
+task.delay(19, function()
     if not ScreenGui.Parent then return end
 
     local centerX = 0.5
