@@ -251,14 +251,14 @@ end
 
 -- SOM
 local Sound = Instance.new("Sound")
-Sound.SoundId = "rbxassetid://998478965656"
+Sound.SoundId = "rbxassetid://86173461299180"
 Sound.Volume = 0.7
 Sound.Looped = false
 Sound.Parent = Background
 Sound:Play()
 
---  EXPLOSÃO DE TELA INTEIRA NO DROP — 15s
-task.delay(15, function()
+--  EXPLOSÃO DE TELA INTEIRA NO DROP — 14s
+task.delay(14, function()
     if not ScreenGui.Parent then return end
 
     local centerX = 0.5
@@ -510,7 +510,7 @@ task.delay(15, function()
 end)
 
 -- CARREGAMENTO
-local totalTime = 40
+local totalTime = 30
 
 for i = 1, 100 do
 	Bar.Size = UDim2.new(i / 100, 0, 1, 0)
