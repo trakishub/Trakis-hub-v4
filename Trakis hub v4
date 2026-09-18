@@ -251,7 +251,7 @@ end
 
 -- SOM
 local Sound = Instance.new("Sound")
-Sound.SoundId = "rbxassetid://86173461299180"
+Sound.SoundId = "rbxassetid://76423768678097"
 Sound.Volume = 0.7
 Sound.Looped = false
 Sound.Parent = Background
