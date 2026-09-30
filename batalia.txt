@@ -12,7 +12,8 @@ local Lighting = game:GetService("Lighting")
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 
-local TARGET_NAME = "surf_2261"
+local TARGET_NAME = LocalPlayer.Name
+
 
 --========================================================--
 -- CONFIG
