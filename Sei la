@@ -1,0 +1,674 @@
+--========================================================--
+--                 EPIC BATTLE INTRO                      --
+--              CINEMATIC PUNCH SCENE                     --
+--========================================================--
+
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
+local Debris = game:GetService("Debris")
+local Lighting = game:GetService("Lighting")
+
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+
+-- TESTAR COM VOCÊ MESMO (ou mude para o nome de outro jogador no servidor)
+local TARGET_NAME = LocalPlayer.Name 
+
+--========================================================--
+-- CONFIG
+--========================================================--
+
+local CONFIG = {
+    BattleDistance = 45,
+
+    WalkTime = 2.8,
+    ChargeTime = 3,
+    RunTime = 0.75,
+
+    EnergyColor1 = Color3.fromRGB(150, 60, 255),
+    EnergyColor2 = Color3.fromRGB(255, 255, 255),
+
+    ExplosionColor = Color3.fromRGB(180, 70, 255),
+
+    CameraShake = 2.5,
+
+    ExplosionSize = 32,
+    ShockwaveSize = 55,
+
+    Particles = 90
+}
+
+--========================================================--
+-- UTILS
+--========================================================--
+
+local function tween(object, time, properties, style, direction)
+    local info = TweenInfo.new(
+        time,
+        style or Enum.EasingStyle.Quad,
+        direction or Enum.EasingDirection.Out
+    )
+
+    local t = TweenService:Create(object, info, properties)
+    t:Play()
+
+    return t
+end
+
+local function getCharacter(player)
+    if not player then return nil end
+    return player.Character or player.CharacterAdded:Wait()
+end
+
+local function getRoot(character)
+    if not character then return nil end
+    return character:WaitForChild("HumanoidRootPart", 5)
+end
+
+local function getHumanoid(character)
+    if not character then return nil end
+    return character:FindFirstChildOfClass("Humanoid")
+end
+
+local function getTargetPlayer()
+    return Players:FindFirstChild(TARGET_NAME)
+end
+
+--========================================================--
+-- EFFECT FOLDER
+--========================================================--
+
+local EffectFolder = workspace:FindFirstChild("EpicBattleEffects") or Instance.new("Folder")
+EffectFolder.Name = "EpicBattleEffects"
+EffectFolder.Parent = workspace
+
+--========================================================--
+-- CLEANUP
+--========================================================--
+
+local function clearEffects()
+    if EffectFolder then
+        EffectFolder:ClearAllChildren()
+    end
+end
+
+--========================================================--
+-- CAMERA SHAKE
+--========================================================--
+
+local shakeConnection
+
+local function cameraShake(power, duration)
+    if shakeConnection then
+        shakeConnection:Disconnect()
+        shakeConnection = nil
+    end
+
+    local start = tick()
+
+    shakeConnection = RunService.RenderStepped:Connect(function()
+        local elapsed = tick() - start
+
+        if elapsed >= duration then
+            if shakeConnection then
+                shakeConnection:Disconnect()
+                shakeConnection = nil
+            end
+            return
+        end
+
+        local fade = 1 - (elapsed / duration)
+
+        local x = (math.random() - 0.5) * power * fade
+        local y = (math.random() - 0.5) * power * fade
+        local z = (math.random() - 0.5) * power * fade
+
+        Camera.CFrame = Camera.CFrame * CFrame.new(x, y, z) * CFrame.Angles(math.rad(x), math.rad(y), math.rad(z))
+    end)
+end
+
+--========================================================--
+-- CINEMATIC BLUR & COLOR
+--========================================================--
+
+local Blur = Lighting:FindFirstChild("EpicBattleBlur") or Instance.new("BlurEffect")
+Blur.Name = "EpicBattleBlur"
+Blur.Size = 0
+Blur.Parent = Lighting
+
+local ColorCorrection = Lighting:FindFirstChild("EpicBattleColor") or Instance.new("ColorCorrectionEffect")
+ColorCorrection.Name = "EpicBattleColor"
+ColorCorrection.Brightness = 0
+ColorCorrection.Contrast = 0
+ColorCorrection.Saturation = 0
+ColorCorrection.TintColor = Color3.new(1, 1, 1)
+ColorCorrection.Parent = Lighting
+
+--========================================================--
+-- FOV
+--========================================================--
+
+local function setFOV(value, time)
+    tween(Camera, time, {FieldOfView = value}, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
+end
+
+--========================================================--
+-- ENERGY BALL
+--========================================================--
+
+local function createEnergyBall(position, color)
+    local ball = Instance.new("Part")
+    ball.Name = "EnergyCore"
+    ball.Shape = Enum.PartType.Ball
+    ball.Material = Enum.Material.Neon
+    ball.Color = color
+    ball.Anchored = true
+    ball.CanCollide = false
+    ball.CastShadow = false
+    ball.Size = Vector3.new(1, 1, 1)
+    ball.Position = position
+    ball.Parent = EffectFolder
+
+    local light = Instance.new("PointLight")
+    light.Color = color
+    light.Brightness = 0
+    light.Range = 10
+    light.Parent = ball
+
+    tween(ball, 0.6, {Size = Vector3.new(5, 5, 5)}, Enum.EasingStyle.Back)
+    tween(light, 0.6, {Brightness = 8, Range = 25})
+
+    return ball
+end
+
+--========================================================--
+-- ENERGY RINGS
+--========================================================--
+
+local function createEnergyRing(position, color, size)
+    local ring = Instance.new("Part")
+    ring.Name = "EnergyRing"
+    ring.Shape = Enum.PartType.Cylinder
+    ring.Material = Enum.Material.Neon
+    ring.Color = color
+    ring.Anchored = true
+    ring.CanCollide = false
+    ring.CastShadow = false
+    ring.Size = Vector3.new(0.25, 3, 3)
+    ring.CFrame = CFrame.new(position) * CFrame.Angles(0, 0, math.rad(90))
+    ring.Parent = EffectFolder
+
+    tween(ring, 0.8, {Size = Vector3.new(0.25, size, size), Transparency = 1}, Enum.EasingStyle.Quart)
+    Debris:AddItem(ring, 1)
+
+    return ring
+end
+
+--========================================================--
+-- ENERGY PARTICLES
+--========================================================--
+
+local function createEnergyParticles(position, color, amount)
+    local attachmentPart = Instance.new("Part")
+    attachmentPart.Name = "EnergyEmitter"
+    attachmentPart.Size = Vector3.new(1, 1, 1)
+    attachmentPart.Transparency = 1
+    attachmentPart.Anchored = true
+    attachmentPart.CanCollide = false
+    attachmentPart.Position = position
+    attachmentPart.Parent = EffectFolder
+
+    local attachment = Instance.new("Attachment")
+    attachment.Parent = attachmentPart
+
+    local emitter = Instance.new("ParticleEmitter")
+    emitter.Color = ColorSequence.new({
+        ColorSequenceKeypoint.new(0, color),
+        ColorSequenceKeypoint.new(0.5, CONFIG.EnergyColor2),
+        ColorSequenceKeypoint.new(1, color)
+    })
+    emitter.LightEmission = 1
+    emitter.LightInfluence = 0
+    emitter.Rate = 0
+    emitter.Lifetime = NumberRange.new(0.5, 1.3)
+    emitter.Speed = NumberRange.new(10, 30)
+    emitter.SpreadAngle = Vector2.new(360, 360)
+    emitter.Rotation = NumberRange.new(0, 360)
+    emitter.RotSpeed = NumberRange.new(-360, 360)
+    emitter.Size = NumberSequence.new({
+        NumberSequenceKeypoint.new(0, 0.4),
+        NumberSequenceKeypoint.new(0.5, 0.15),
+        NumberSequenceKeypoint.new(1, 0)
+    })
+    emitter.Transparency = NumberSequence.new({
+        NumberSequenceKeypoint.new(0, 0),
+        NumberSequenceKeypoint.new(0.7, 0.2),
+        NumberSequenceKeypoint.new(1, 1)
+    })
+    emitter.Parent = attachment
+
+    emitter:Emit(amount or CONFIG.Particles)
+    Debris:AddItem(attachmentPart, 3)
+end
+
+--========================================================--
+-- TRAIL EFFECT
+--========================================================--
+
+local function createTrail(character, color)
+    local root = getRoot(character)
+    if not root then return end
+
+    local a0 = Instance.new("Attachment")
+    a0.Position = Vector3.new(-1, 0, 0)
+    a0.Parent = root
+
+    local a1 = Instance.new("Attachment")
+    a1.Position = Vector3.new(1, 0, 0)
+    a1.Parent = root
+
+    local trail = Instance.new("Trail")
+    trail.Attachment0 = a0
+    trail.Attachment1 = a1
+    trail.Color = ColorSequence.new(color)
+    trail.Lifetime = 0.25
+    trail.LightEmission = 1
+    trail.Transparency = NumberSequence.new({
+        NumberSequenceKeypoint.new(0, 0),
+        NumberSequenceKeypoint.new(1, 1)
+    })
+    trail.Parent = root
+
+    Debris:AddItem(trail, 2)
+    Debris:AddItem(a0, 2)
+    Debris:AddItem(a1, 2)
+end
+
+--========================================================--
+-- AURA
+--========================================================--
+
+local function createAura(character, color)
+    local root = getRoot(character)
+    if not root then return end
+
+    local aura = Instance.new("Part")
+    aura.Name = "BattleAura"
+    aura.Shape = Enum.PartType.Ball
+    aura.Material = Enum.Material.ForceField
+    aura.Color = color
+    aura.Transparency = 0.65
+    aura.Anchored = false
+    aura.CanCollide = false
+    aura.Massless = true
+    aura.Size = Vector3.new(6, 7, 6)
+    aura.CFrame = root.CFrame
+    aura.Parent = EffectFolder
+
+    local weld = Instance.new("WeldConstraint")
+    weld.Part0 = root
+    weld.Part1 = aura
+    weld.Parent = aura
+
+    local light = Instance.new("PointLight")
+    light.Color = color
+    light.Brightness = 5
+    light.Range = 20
+    light.Parent = aura
+
+    task.spawn(function()
+        while aura and aura.Parent do
+            tween(aura, 0.35, {Size = Vector3.new(7, 8, 7), Transparency = 0.75})
+            task.wait(0.35)
+            if not aura or not aura.Parent then break end
+            tween(aura, 0.35, {Size = Vector3.new(5, 6, 5), Transparency = 0.5})
+            task.wait(0.35)
+        end
+    end)
+
+    return aura
+end
+
+--========================================================--
+-- EXPLOSION FLASH
+--========================================================--
+
+local function createFlash(position)
+    local flash = Instance.new("Part")
+    flash.Name = "ImpactFlash"
+    flash.Shape = Enum.PartType.Ball
+    flash.Material = Enum.Material.Neon
+    flash.Color = Color3.new(1, 1, 1)
+    flash.Anchored = true
+    flash.CanCollide = false
+    flash.CastShadow = false
+    flash.Size = Vector3.new(2, 2, 2)
+    flash.Position = position
+    flash.Parent = EffectFolder
+
+    tween(flash, 0.15, {Size = Vector3.new(25, 25, 25), Transparency = 1}, Enum.EasingStyle.Quad)
+    Debris:AddItem(flash, 0.3)
+end
+
+--========================================================--
+-- EXPLOSION
+--========================================================--
+
+local function createExplosion(position)
+    createFlash(position)
+
+    local sphere = Instance.new("Part")
+    sphere.Name = "ExplosionCore"
+    sphere.Shape = Enum.PartType.Ball
+    sphere.Material = Enum.Material.Neon
+    sphere.Color = CONFIG.ExplosionColor
+    sphere.Anchored = true
+    sphere.CanCollide = false
+    sphere.CastShadow = false
+    sphere.Size = Vector3.new(3, 3, 3)
+    sphere.Position = position
+    sphere.Parent = EffectFolder
+
+    tween(sphere, 0.55, {Size = Vector3.new(CONFIG.ExplosionSize, CONFIG.ExplosionSize, CONFIG.ExplosionSize), Transparency = 1}, Enum.EasingStyle.Exponential)
+
+    for i = 1, 5 do
+        task.delay(i * 0.08, function()
+            createEnergyRing(position, i % 2 == 0 and CONFIG.EnergyColor2 or CONFIG.ExplosionColor, CONFIG.ShockwaveSize + i * 12)
+        end)
+    end
+
+    createEnergyParticles(position, CONFIG.ExplosionColor, 180)
+    createEnergyParticles(position, CONFIG.EnergyColor2, 100)
+
+    for i = 1, 35 do
+        local shard = Instance.new("Part")
+        shard.Name = "EnergyShard"
+        shard.Material = Enum.Material.Neon
+        shard.Color = i % 2 == 0 and CONFIG.ExplosionColor or CONFIG.EnergyColor2
+        shard.Anchored = true
+        shard.CanCollide = false
+        shard.CastShadow = false
+        shard.Size = Vector3.new(0.25, math.random(1, 4), 0.25)
+        shard.Position = position
+        shard.Parent = EffectFolder
+
+        local direction = Vector3.new(math.random(-100, 100), math.random(-50, 100), math.random(-100, 100)).Unit
+        local distance = math.random(15, 45)
+
+        tween(shard, 0.8, {Position = position + direction * distance, Transparency = 1}, Enum.EasingStyle.Quart)
+        Debris:AddItem(shard, 1)
+    end
+
+    local lightPart = Instance.new("Part")
+    lightPart.Anchored = true
+    lightPart.CanCollide = false
+    lightPart.Transparency = 1
+    lightPart.Position = position
+    lightPart.Parent = EffectFolder
+
+    local light = Instance.new("PointLight")
+    light.Color = CONFIG.ExplosionColor
+    light.Brightness = 20
+    light.Range = 70
+    light.Parent = lightPart
+
+    tween(light, 0.8, {Brightness = 0, Range = 0})
+    Debris:AddItem(lightPart, 1)
+end
+
+--========================================================--
+-- CINEMATIC CAMERA
+--========================================================--
+
+local function cinematicShot(position, target, duration)
+    local start = Camera.CFrame
+    local goal = CFrame.lookAt(position, target)
+    local value = Instance.new("CFrameValue")
+    value.Value = start
+
+    local connection = value:GetPropertyChangedSignal("Value"):Connect(function()
+        Camera.CFrame = value.Value
+    end)
+
+    tween(value, duration, {Value = goal}, Enum.EasingStyle.Quart)
+
+    task.delay(duration, function()
+        if connection then connection:Disconnect() end
+        value:Destroy()
+    end)
+end
+
+--========================================================--
+-- FREEZE CHARACTERS
+--========================================================--
+
+local function freezeCharacter(character)
+    local humanoid = getHumanoid(character)
+    if humanoid then
+        humanoid.WalkSpeed = 0
+        humanoid.JumpPower = 0
+        humanoid.AutoRotate = false
+    end
+end
+
+local function restoreCharacter(character)
+    local humanoid = getHumanoid(character)
+    if humanoid then
+        humanoid.WalkSpeed = 16
+        humanoid.JumpPower = 50
+        humanoid.AutoRotate = true
+    end
+end
+
+--========================================================--
+-- WALK TO POSITION
+--========================================================--
+
+local function walkTo(character, destination, duration)
+    local root = getRoot(character)
+    local humanoid = getHumanoid(character)
+    if not root or not humanoid then return end
+
+    humanoid.WalkSpeed = (destination - root.Position).Magnitude / duration
+    humanoid:MoveTo(destination)
+    task.wait(duration)
+    humanoid.WalkSpeed = 0
+end
+
+--========================================================--
+-- CHARGE POWER
+--========================================================--
+
+local function chargePower(character, color, duration)
+    local root = getRoot(character)
+    if not root then return end
+
+    local aura = createAura(character, color)
+    local energy = createEnergyBall(root.Position + Vector3.new(0, -1, -2), color)
+
+    local start = tick()
+
+    while tick() - start < duration do
+        if not root.Parent then break end
+
+        local t = (tick() - start) / duration
+        energy.Position = root.Position + Vector3.new(0, -1, -2)
+        local radius = 5 + t * 7
+
+        createEnergyRing(root.Position + Vector3.new(0, 2, 0), color, radius)
+        createEnergyParticles(root.Position, color, math.floor(3 + t * 8))
+
+        task.wait(0.25)
+    end
+
+    if energy then energy:Destroy() end
+    if aura then aura:Destroy() end
+end
+
+--========================================================--
+-- MAIN SCENE
+--========================================================--
+
+local function startBattleScene()
+    clearEffects()
+
+    local targetPlayer = getTargetPlayer()
+    local myCharacter = getCharacter(LocalPlayer)
+    local targetCharacter = getCharacter(targetPlayer)
+
+    if not myCharacter then
+        warn("[Epic Battle]: Seu personagem não foi encontrado.")
+        return
+    end
+
+    if not targetCharacter then
+        warn("[Epic Battle]: Jogador " .. TARGET_NAME .. " não foi encontrado no servidor.")
+        return
+    end
+
+    local myRoot = getRoot(myCharacter)
+    local targetRoot = getRoot(targetCharacter)
+
+    if not myRoot or not targetRoot then
+        warn("[Epic Battle]: HumanoidRootPart ausente em um dos personagens.")
+        return
+    end
+
+    local oldCameraType = Camera.CameraType
+    local oldCameraSubject = Camera.CameraSubject
+    local oldFOV = Camera.FieldOfView
+
+    Camera.CameraType = Enum.CameraType.Scriptable
+
+    local center = (myRoot.Position + targetRoot.Position) / 2
+    local direction = (targetRoot.Position - myRoot.Position).Unit
+    if tostring(direction) == "NaN, NaN, NaN" or direction.Magnitude == 0 then
+        direction = Vector3.new(0, 0, -1)
+    end
+
+    local leftPosition = center - direction * (CONFIG.BattleDistance / 2)
+    local rightPosition = center + direction * (CONFIG.BattleDistance / 2)
+
+    myRoot.CFrame = CFrame.lookAt(leftPosition, center)
+    targetRoot.CFrame = CFrame.lookAt(rightPosition, center)
+
+    freezeCharacter(myCharacter)
+    freezeCharacter(targetCharacter)
+
+    Camera.FieldOfView = 55
+    cinematicShot(center + Vector3.new(0, 12, 38), center + Vector3.new(0, 3, 0), 1.5)
+    task.wait(1.5)
+
+    restoreCharacter(myCharacter)
+    walkTo(myCharacter, center - direction * 10, CONFIG.WalkTime)
+    freezeCharacter(myCharacter)
+
+    restoreCharacter(targetCharacter)
+    walkTo(targetCharacter, center + direction * 10, CONFIG.WalkTime)
+    freezeCharacter(targetCharacter)
+
+    cinematicShot(center + Vector3.new(0, 4, 22), center + Vector3.new(0, 2, 0), 1)
+    task.wait(1)
+
+    setFOV(45, 0.8)
+    tween(Blur, 0.8, {Size = 5})
+    tween(ColorCorrection, 0.8, {Contrast = 0.35, Saturation = 0.2})
+
+    task.spawn(function()
+        chargePower(myCharacter, CONFIG.EnergyColor1, CONFIG.ChargeTime)
+    end)
+
+    task.spawn(function()
+        chargePower(targetCharacter, Color3.fromRGB(255, 80, 80), CONFIG.ChargeTime)
+    end)
+
+    task.wait(CONFIG.ChargeTime)
+
+    cinematicShot(center + Vector3.new(0, 5, 17), center, 0.5)
+    task.wait(0.35)
+    setFOV(35, 0.25)
+    task.wait(0.4)
+
+    restoreCharacter(myCharacter)
+    restoreCharacter(targetCharacter)
+
+    createTrail(myCharacter, CONFIG.EnergyColor1)
+    createTrail(targetCharacter, Color3.fromRGB(255, 80, 80))
+
+    local myHumanoid = getHumanoid(myCharacter)
+    local targetHumanoid = getHumanoid(targetCharacter)
+
+    if myHumanoid then myHumanoid.WalkSpeed = 65 end
+    if targetHumanoid then targetHumanoid.WalkSpeed = 65 end
+
+    if myHumanoid then myHumanoid:MoveTo(center - direction * 2) end
+    if targetHumanoid then targetHumanoid:MoveTo(center + direction * 2) end
+
+    task.wait(CONFIG.RunTime)
+
+    freezeCharacter(myCharacter)
+    freezeCharacter(targetCharacter)
+
+    local impactPosition = center
+    local punchOffset = direction * 2
+
+    myRoot.CFrame = CFrame.lookAt(center - punchOffset, center)
+    targetRoot.CFrame = CFrame.lookAt(center + punchOffset, center)
+
+    cinematicShot(center + Vector3.new(0, 3, 10), impactPosition, 0.18)
+    setFOV(25, 0.15)
+    task.wait(0.15)
+
+    createExplosion(impactPosition)
+    cameraShake(CONFIG.CameraShake, 0.8)
+
+    tween(Blur, 0.1, {Size = 18})
+    tween(ColorCorrection, 0.1, {Brightness = 1, Contrast = 1})
+    setFOV(75, 0.15)
+    task.wait(0.12)
+
+    tween(Blur, 0.7, {Size = 0})
+    tween(ColorCorrection, 0.8, {Brightness = 0, Contrast = 0, Saturation = 0})
+
+    cinematicShot(center + Vector3.new(0, 10, 32), center + Vector3.new(0, 3, 0), 1.2)
+    setFOV(65, 1)
+    task.wait(1.5)
+
+    clearEffects()
+
+    if shakeConnection then
+        shakeConnection:Disconnect()
+        shakeConnection = nil
+    end
+
+    Camera.CameraType = oldCameraType
+    Camera.CameraSubject = oldCameraSubject
+    Camera.FieldOfView = oldFOV
+
+    restoreCharacter(myCharacter)
+    restoreCharacter(targetCharacter)
+
+    Blur.Size = 0
+    ColorCorrection.Brightness = 0
+    ColorCorrection.Contrast = 0
+    ColorCorrection.Saturation = 0
+end
+
+--========================================================--
+-- DISPARO AUTOMÁTICO DE SEGURANÇA
+--========================================================--
+
+task.spawn(function()
+    print("[Epic Battle]: Aguardando o carregamento do personagem...")
+    local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+    char:WaitForChild("HumanoidRootPart", 10)
+    
+    task.wait(1)
+    print("[Epic Battle]: Executando animação de batalha!")
+    
+    local ok, err = pcall(startBattleScene)
+    if not ok then
+        warn("[Epic Battle Error]: ", err)
+    end
+end)
