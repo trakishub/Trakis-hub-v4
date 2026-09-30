@@ -13,7 +13,26 @@ local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 
 -- TESTAR COM VOCÊ MESMO (ou mude para o nome de outro jogador no servidor)
-local TARGET_NAME = LocalPlayer.Name 
+local TARGET_NAME = nil
+
+local function getTargetPlayer()
+    if TARGET_NAME and TARGET_NAME ~= "" then
+        local target = Players:FindFirstChild(TARGET_NAME)
+
+        if target and target ~= LocalPlayer then
+            return target
+        end
+    end
+
+    -- Procura automaticamente outro jogador
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer then
+            return player
+        end
+    end
+
+    return nil
+end
 
 --========================================================--
 -- CONFIG
@@ -1173,70 +1192,27 @@ local function startBattleScene()
     -- RUN
     --====================================================
 
-    restoreCharacter(
-        myCharacter
-    )
+    local myHumanoid = getHumanoid(myCharacter)
+local targetHumanoid = getHumanoid(targetCharacter)
 
-    restoreCharacter(
-        targetCharacter
-    )
+if not myHumanoid or not targetHumanoid then
+    warn("Não foi possível encontrar os Humanoids dos personagens.")
+    return
+end
 
-    createTrail(
-        myCharacter,
-        CONFIG.EnergyColor1
-    )
+myHumanoid.WalkSpeed = 65
+targetHumanoid.WalkSpeed = 65
 
-    createTrail(
-        targetCharacter,
-        Color3.fromRGB(
-            255,
-            80,
-            80
-        )
-    )
+local myDestination = center - direction * 2
+local targetDestination = center + direction * 2
 
-    local myHumanoid =
-        getHumanoid(myCharacter)
+myHumanoid:MoveTo(myDestination)
+targetHumanoid:MoveTo(targetDestination)
 
-    local targetHumanoid =
-        getHumanoid(targetCharacter)
+task.wait(CONFIG.RunTime)
 
-    if myHumanoid then
-        myHumanoid.WalkSpeed = 65
-    end
-
-    if targetHumanoid then
-        targetHumanoid.WalkSpeed = 65
-    end
-
-    local myDestination =
-        center -
-        direction * 2
-
-    local targetDestination =
-        center +
-        direction * 2
-
-    myHumanoid:MoveTo(
-        myDestination
-    )
-
-    targetHumanoid:MoveTo(
-        targetDestination
-    )
-
-    task.wait(
-        CONFIG.RunTime
-    )
-
-    freezeCharacter(
-        myCharacter
-    )
-
-    freezeCharacter(
-        targetCharacter
-    )
-
+freezeCharacter(myCharacter)
+freezeCharacter(targetCharacter)
     --====================================================
     -- PUNCH MOMENT
     --====================================================
